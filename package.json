@@ -1,0 +1,18 @@
+{
+  "name": "neff",
+  "version": "0.0.1",
+  "description": "neovim rpc plugin",
+  "dependencies": {
+    "cli-color": "^1.0.0",
+    "neovim-client": "^1.0.4",
+    "sync": "^0.2.5",
+    "synchronize": "^0.9.14",
+    "traverse": "^0.6.6"
+  },
+  "devDependencies": {
+    "grunt-contrib-coffee": "^0.13.0",
+    "grunt-contrib-watch": "^0.6.1",
+    "grunt-typescript": "^0.7.0",
+    "shelljs": "^0.5.3"
+  }
+}
