@@ -3,7 +3,6 @@
 # Imports =================================================================={{{
 
 Path     = require 'path'
-Net      = require 'net'
 Clc      = require 'cli-color'
 attach   = require 'neovim-client'
 sync     = require 'synchronize'
@@ -14,7 +13,7 @@ defer    = sync.defer
 # }}}
 #=============================================================================
 
-#module.exports = (a, b) ->
+module.exports = context = {}
 
 # Vim functions ============================================================{{{
 

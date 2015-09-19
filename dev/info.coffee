@@ -26,14 +26,12 @@ sock = Net.createConnection {port: 6666}, '127.0.0.1'
 main = (nvim) ->
     log.success 'Started... [channel='+nvim._channel_id+']'
     fiber ->
-
         nvim.command( "EchoHL TextInfo " +
             "'RPC: #{Path.basename(__filename)} #{process.pid}'")
-
         require '../lib/nvim'
         require './exec'
 
-    process.exit(0)
+    #process.exit(0)
 
 attach sock, sock, (err, nvim) ->
     nvim.on 'request', (method, args, resp) ->

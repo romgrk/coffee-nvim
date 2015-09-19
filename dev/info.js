@@ -1,15 +1,11 @@
 (function() {
-  var ADDRESS, Clc, Net, Path, attach, await, call, defer, fiber, log, main, sock, sync, traverse;
+  var ADDRESS, Net, Path, attach, await, call, defer, fiber, log, main, sock, sync;
 
   Path = require('path');
 
   Net = require('net');
 
-  Clc = require('cli-color');
-
   attach = require('neovim-client');
-
-  traverse = require('traverse');
 
   sync = require('synchronize');
 
@@ -35,12 +31,11 @@
 
   main = function(nvim) {
     log.success('Started... [channel=' + nvim._channel_id + ']');
-    fiber(function() {
+    return fiber(function() {
       nvim.command("EchoHL TextInfo " + ("'RPC: " + (Path.basename(__filename)) + " " + process.pid + "'"));
       require('../lib/nvim');
       return require('./exec');
     });
-    return process.exit(0);
   };
 
   attach(sock, sock, function(err, nvim) {
