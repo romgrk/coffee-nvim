@@ -19,6 +19,7 @@ await  = sync.await
 defer  = sync.defer
 
 argv = require('minimist')(process.argv.slice(2))
+
 # }}}
 # Settings ================================================================={{{
 
@@ -31,13 +32,14 @@ sock = Net.createConnection PORT
 
 #===========================================================================}}}
 
+# Nvim instance
 Nvim = null
 lib  = null
 
-evalMethod = null
-
 # List of handlers for nvim requests
 handlers = {}
+
+evalMethod = null
 
 # Stdio for msgpack data transfer
 stdio = [process.stdout, process.stdin]
@@ -66,7 +68,10 @@ dataHandler = (data) ->
 # Vm run
 vmHandler = (code) ->
     try
-        context = require './nvim'
+        context      = require './nvim'
+        context.log  = log
+        context.sync = sync
+        context.Nvim = Nvim
         _.extend context, global
         sandbox = Vm.createContext context
         fiber ->
@@ -97,15 +102,29 @@ onNvimRequest = (method, args, resp) ->
     log.info 'Request: ', method, args.toString()
     resp.send null
 
-handlers['RunBuffer'] = (nr) ->
+handlers['vm'] = (nr) ->
     try
         file = lib.bufname(nr)
         content = Fs.readFileSync file
         [status, code] = coffee(content)
-        evalMethod(code ) if status == 0
+        vmHandler(code ) if status == 0
         throw new Error("couldnt compile "+file) if status == 1
     catch e
         log.error e, e.stack
+
+handlers['eval'] = (nr) ->
+    try
+        file = lib.bufname(nr)
+        content = Fs.readFileSync file
+        [status, code] = coffee(content)
+        evalHandler(code ) if status == 0
+        throw new Error("couldnt compile "+file) if status == 1
+    catch e
+        log.error e, e.stack
+
+defineHandler = (c, h) ->
+    def = "com! #{c} call rpcnotify(#{Nvim._channel_id}, '#{h}', bufnr('%'))"
+    Nvim.command def
 
 # Log server
 sock.on 'data', dataHandler
@@ -115,19 +134,22 @@ log.success "lib/main running, -s=#{argv.s}"
 
 fiber ->
     Nvim = await attach stdio[0], stdio[1], defer()
-    global.Nvim = Nvim
     if Nvim instanceof Error
         log.error 'error connecting to neovim: ' + err
         process.exit(1)
+
+    global.Nvim = Nvim
+
     log.success 'connected to neovim, channel=' + Nvim._channel_id
-    Nvim.on 'notification', onNvimNotification
+
     Nvim.on 'request', onNvimRequest
+    Nvim.on 'notification', onNvimNotification
 
     lib = require './nvim'
-    #lib.init()
+    lib.init()
     evalMethod = evalHandler
 
-    Nvim.command "com! RunBuffer call rpcnotify(#{Nvim._channel_id}, 'RunBuffer', bufnr('%'))"
-
+    defineHandler('RunBuffer',     'eval')
+    defineHandler('RunBufferInVM', 'vm')
 
 

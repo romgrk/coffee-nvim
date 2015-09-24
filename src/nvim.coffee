@@ -33,7 +33,6 @@ context.init = ->
     BufferPrototype = Object.getPrototypeOf(context.buffer)
     for k, def of context.Buffer
         Object.defineProperty BufferPrototype, k, def
-    sync BufferPrototype, 'getVar', 'setVar'
 
 context.echo = (args...) ->
     Nvim.command( "echo '#{args.join('')}'")
