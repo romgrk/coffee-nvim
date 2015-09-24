@@ -29,9 +29,6 @@ main = (nvim) ->
         nvim.command( "EchoHL TextInfo " +
             "'RPC: #{Path.basename(__filename)} #{process.pid}'")
         require '../lib/nvim'
-        require './exec'
-
-    #process.exit(0)
 
 attach sock, sock, (err, nvim) ->
     nvim.on 'request', (method, args, resp) ->

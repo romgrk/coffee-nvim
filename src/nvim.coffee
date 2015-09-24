@@ -1,23 +1,18 @@
-# ::coffee [.]
+# !::coffee [../lib]
 
 # Imports =================================================================={{{
 
 Path     = require 'path'
-Clc      = require 'cli-color'
-attach   = require 'neovim-client'
-sync     = require 'synchronize'
+sync     = require '../dev/sync'
 fiber    = sync.fiber
 await    = sync.await
 defer    = sync.defer
 
-# }}}
-#=============================================================================
+#===========================================================================}}}
 
 module.exports = context = {}
 
-# Vim functions ============================================================{{{
-
-current =
+properties =
     windows:
         get: -> await Nvim.getWindows defer()
     buffers:
@@ -32,14 +27,30 @@ current =
         get: -> await Nvim.getCurrentTabpage defer()
         set: (b) -> Nvim.setCurrentTabpage b
 
-#end Buffer
+context.init = ->
+    for key, definition of properties
+        Object.defineProperty context, key, definition
+    BufferPrototype = Object.getPrototypeOf(context.buffer)
+    for k, def of context.Buffer
+        Object.defineProperty BufferPrototype, k, def
+    sync BufferPrototype, 'getVar', 'setVar'
 
-for key, def of current
-    Object.defineProperty context, key, def
-    console.log 'context.'+key, def
+context.echo = (args...) ->
+    Nvim.command( "echo '#{args.join('')}'")
+
+context.echohl = (args...) ->
+    hl = if args.length == 1 then 'TextInfo' else args[0]
+    msg = if args.length == 1 then args[0] else args[1..].join ' '
+    Nvim.command( "EchoHL #{hl} #{msg}")
 
 context.eval = (text) ->
     return await Nvim.eval text, defer()
+
+context.bufnr = (expr) ->
+    return await Nvim.eval "bufnr('#{expr}')", defer()
+
+context.bufname = (nr) ->
+    return await(Nvim.eval "bufname(#{nr})", defer()).toString()
 
 context.set = (option, value) ->
     return unless option?
@@ -58,9 +69,7 @@ context.insert = (lnum, lines) ->
     buf = await Nvim.getCurrentBuffer defer()
     buf.insert lnum, lines
 
-#===========================================================================}}}
-
-bufprops =
+context.Buffer =
     length:
         get: -> return await @lineCount defer()
     number:
@@ -69,8 +78,4 @@ bufprops =
         get: -> return await @getName defer()
         set: (v) -> @setName(v)
 
-context.defineObjects = ->
-    Buffer = Object.getPrototypeOf buffer
-    for k, def of bufprops
-        Object.defineProperty Buffer, k, def
 

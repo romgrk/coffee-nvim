@@ -4,16 +4,22 @@
   "description": "neovim rpc plugin",
   "dependencies": {
     "cli-color": "^1.0.0",
+    "coffee-script": "^1.10.0",
+    "coffeescript-compiler": "^0.1.1",
+    "lodash": "^3.10.1",
+    "minimist": "^1.2.0",
     "neovim-client": "^1.0.4",
-    "sync": "^0.2.5",
     "synchronize": "^0.9.14",
     "traverse": "^0.6.6"
   },
   "devDependencies": {
-    "grunt-cli": "^0.1.13",
-    "grunt-contrib-coffee": "^0.13.0",
-    "grunt-contrib-watch": "^0.6.1",
-    "grunt-typescript": "^0.7.0",
+    "argv": "0.0.2",
+    "exectimer": "^1.0.2",
     "shelljs": "^0.5.3"
+  },
+  "scripts": {
+    "server":      "nodemon --watch dev/server.js dev/server.js",
+    "main":        "nodemon --watch lib/main.js lib/main.js -s",
+    "dev:compile": "nodemon --watch dev/compile.js dev/compile.js"
   }
 }
