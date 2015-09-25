@@ -27,7 +27,7 @@ function! RequireCoffeeHost (host)
     try
         let channel = rpcstart('node', args)
         call EchonHL('TextWarning', 'channel=' . channel . ' ')
-        call EchonHL('TextInfo', prog, string(args))
+        "call EchonHL('TextInfo', prog, string(args))
         echohl None
         let g:COFFEE_CHANNEL = channel
         return channel
@@ -36,4 +36,4 @@ function! RequireCoffeeHost (host)
             \ 'with rpcstart(' . prog . ', ' . string(args) . ')'
     endtry
 endfunction
-
+"call remote#host#Register('coffee', '*.coffee', function('RequireCoffeeHost'))

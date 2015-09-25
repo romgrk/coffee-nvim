@@ -12,6 +12,7 @@ attach  = require 'neovim-client'
 Reflect = require 'harmony-reflect'
 Logger  = require 'romgrk-logger'
 
+Plugin = require './plugin'
 coffee = require '../dev/compile'
 sync   = require '../dev/sync'
 fiber  = sync.fiber
@@ -35,6 +36,7 @@ sock = Net.createConnection PORT
 # Nvim instance
 Nvim = null
 lib  = null
+clib = null
 
 # List of handlers for nvim requests
 handlers = {}
@@ -67,19 +69,19 @@ dataHandler = (data) ->
 
 # Vm run
 vmHandler = (code) ->
-    try
-        context      = require './nvim'
-        context.log  = log
-        context.sync = sync
-        context.Nvim = Nvim
-        _.extend context, global
-        sandbox = Vm.createContext context
-        fiber ->
-            Vm.runInContext code, context
+    fiber ->
+        try
+            context         = clib
+            context._       = _
+            context.log     = log
+            context.sync    = sync
+            context.require = require
+            sandbox = Vm.createContext context
+            Vm.runInContext code, sandbox
             if sandbox.res?
                 log.debug sandbox.res
-    catch e
-        log.error e, e.stack
+        catch e
+            log.error e, e.stack
 
 # Eval try/catch
 evalHandler = (code) ->
@@ -99,38 +101,53 @@ onNvimNotification = (method, args) ->
         fiber -> handlers[method] args...
 
 onNvimRequest = (method, args, resp) ->
-    log.info 'Request: ', method, args.toString()
-    resp.send null
-
-handlers['vm'] = (nr) ->
     try
-        file = lib.bufname(nr)
+        log.info 'Request: ', method, args.toString()
+        if method is 'specs'
+            filename = args[0]
+            plugin = Plugin._load filename
+            _.extend handlers, plugin.handlers
+            resp.send(plugin.specs ? [])
+        else
+            resp.send 'nop', true
+    catch e
+        log.error e.stack
+        resp.send e.toString(), true
+
+handlers['plugin'] = (file) ->
+    try
+        #file = clib.bufname(nr)
+        Plugin._load file
+    catch e
+        log.error e, e.stack
+
+handlers['vm'] = (file) ->
+    try
+        #file = clib.bufname(nr)
         content = Fs.readFileSync file
         [status, code] = coffee(content)
-        vmHandler(code ) if status == 0
+        vmHandler(code) if status == 0
         throw new Error("couldnt compile "+file) if status == 1
     catch e
         log.error e, e.stack
 
-handlers['eval'] = (nr) ->
+handlers['eval'] = (file) ->
     try
-        file = lib.bufname(nr)
+        #file = clib.bufname(nr)
         content = Fs.readFileSync file
         [status, code] = coffee(content)
-        evalHandler(code ) if status == 0
+        evalHandler(code) if status == 0
         throw new Error("couldnt compile "+file) if status == 1
     catch e
         log.error e, e.stack
 
 defineHandler = (c, h) ->
-    def = "com! #{c} call rpcnotify(#{Nvim._channel_id}, '#{h}', bufnr('%'))"
+    def = "com! #{c} call rpcnotify(#{Nvim._channel_id}, '#{h}', expand('%:p'))"
     Nvim.command def
 
 # Log server
 sock.on 'data', dataHandler
 log.method = (args...) -> sock.write args.join(' ')+'\n'
-
-log.success "lib/main running, -s=#{argv.s}"
 
 fiber ->
     Nvim = await attach stdio[0], stdio[1], defer()
@@ -138,18 +155,23 @@ fiber ->
         log.error 'error connecting to neovim: ' + err
         process.exit(1)
 
-    global.Nvim = Nvim
-
+    global.log = log
     log.success 'connected to neovim, channel=' + Nvim._channel_id
 
     Nvim.on 'request', onNvimRequest
     Nvim.on 'notification', onNvimNotification
 
-    lib = require './nvim'
-    lib.init()
-    evalMethod = evalHandler
+    try
+        lib = require('./nvim')
+        clib = lib.init(Nvim)
+        clib.log = log
+
+        Plugin._context = lib.context
+    catch e
+        log.error e.stack
 
     defineHandler('RunBuffer',     'eval')
     defineHandler('RunBufferInVM', 'vm')
+    defineHandler('CoffeePlugin',  'plugin')
 
 

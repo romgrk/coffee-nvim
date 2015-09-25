@@ -2,79 +2,52 @@
 
 # Imports =================================================================={{{
 
-Path     = require 'path'
-sync     = require '../dev/sync'
-fiber    = sync.fiber
-await    = sync.await
-defer    = sync.defer
+_       = require 'lodash'
+Path    = require 'path'
+Reflect = require 'harmony-reflect'
+sync    = require '../dev/sync'
+fiber   = sync.fiber
+await   = sync.await
+defer   = sync.defer
 
 #===========================================================================}}}
 
-module.exports = context = {}
+module.exports = lib =
+    context: null
 
-properties =
-    windows:
-        get: -> await Nvim.getWindows defer()
-    buffers:
-        get: -> await Nvim.getBuffers defer()
-    buffer:
-        get: -> await Nvim.getCurrentBuffer defer()
-        set: (b) -> Nvim.setCurrentBuffer b
-    window:
-        get: -> await Nvim.getCurrentWindow defer()
-        set: (b) -> Nvim.setCurrentWindow b
-    tab:
-        get: -> await Nvim.getCurrentTabpage defer()
-        set: (b) -> Nvim.setCurrentTabpage b
+    init: (nvim) ->
+        #NvimType = () ->
+            #@name = 'nvim_type'
+        #NvimType:: = new nvim.constructor(nvim._session)
+        #Nvim = new NvimType
+        Nvim = nvim
+        @synchronize Nvim
 
-context.init = ->
-    for key, definition of properties
-        Object.defineProperty context, key, definition
-    BufferPrototype = Object.getPrototypeOf(context.buffer)
-    for k, def of context.Buffer
-        Object.defineProperty BufferPrototype, k, def
+        #types = [Nvim.constructor, Nvim.Buffer, Nvim.Window, Nvim.Tabpage]
+        #@synchronize(t) for t in types
+        @buffer = require('./buffer')
+        @buffer.init(Nvim.Buffer::)
+        @synchronize Nvim.Buffer::
 
-context.echo = (args...) ->
-    Nvim.command( "echo '#{args.join('')}'")
+        @window = require('./window')
+        @window.init(Nvim.Window::)
+        @synchronize Nvim.Window::
 
-context.echohl = (args...) ->
-    hl = if args.length == 1 then 'TextInfo' else args[0]
-    msg = if args.length == 1 then args[0] else args[1..].join ' '
-    Nvim.command( "EchoHL #{hl} #{msg}")
+        @tabpage = require('./tabpage')
+        @tabpage.init(Nvim.Tabpage::)
+        @synchronize Nvim.Tabpage::
 
-context.eval = (text) ->
-    return await Nvim.eval text, defer()
+        context = require('./global')(Nvim)
+        context.Nvim = Nvim
+        @context = context
 
-context.bufnr = (expr) ->
-    return await Nvim.eval "bufnr('#{expr}')", defer()
+        return context
 
-context.bufname = (nr) ->
-    return await(Nvim.eval "bufname(#{nr})", defer()).toString()
-
-context.set = (option, value) ->
-    return unless option?
-    if option[-1..] == '?'
-        return await Nvim.getOption option[..-2], defer()
-    if value?
-        Nvim.setOption option, value
-
-context.normal = (seq, nore=true) ->
-    Nvim.command "normal#{nore?'!':''} #{seq}"
-
-context.execute = (seq) ->
-    Nvim.command seq
-
-context.insert = (lnum, lines) ->
-    buf = await Nvim.getCurrentBuffer defer()
-    buf.insert lnum, lines
-
-context.Buffer =
-    length:
-        get: -> return await @lineCount defer()
-    number:
-        get: -> return await @getNumber defer()
-    name:
-        get: -> return await @getName defer()
-        set: (v) -> @setName(v)
-
+    synchronize: (object) ->
+        for k, v of object
+            apiFunc = object[k]?.metadata?
+            continue unless apiFunc
+            func = object[k]
+            sync object, k
+            object[k].metadata = func.metadata
 

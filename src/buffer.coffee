@@ -1,24 +1,68 @@
-# ::coffee [../lib]
+# !::coffee [../lib]
 
-# !::exe [RunBufferInVM]
+Reflect = require 'harmony-reflect'
+
+module.exports = buffer =
+    BufferProxy: BufferProxy
+    init: (type) ->
+        for key, definition of @properties
+            Object.defineProperty type, key, definition
+        type.proxy = ->
+            return new BufferProxy @
+
+buffer.properties =
+    length:
+        get: -> return @lineCount()
+    number:
+        get: -> return @getNumber()
+    name:
+        get: -> return @getName()
+        set: (v) -> @setName(v)
+    valid:
+        get: -> return @isValid()
+
+buffer.proxy =
+    construct: (target, args) ->
+        t = new target(args...)
+        return new BufferProxy(t)
+
+class BufferProxy
+    constructor: (target) ->
+        return new Proxy target, @
 
 
-#apiTypes = [Nvim.constructor, Nvim.Buffer, Nvim.Window, Nvim.Tabpage]
-#synchronizeApi = (object) ->
-    #list = []
-    #for k, v of object::
-        #apiFunc = object::[k]?.metadata?
-        #continue unless apiFunc
-        #func = object::[k]
-        #sync object::, k
-        #object::[k].metadata = func.metadata
-        #list.push k
-    #log.b list, '\n'
+    get: (target, name, receiver) ->
+        switch name.charAt(0)
+            when ':'
+                varName = name.substring(1)
+                return target.getVar(varName)
+            when '&'
+                optName = name.substring(1)
+                return target.getOption(optName)
+        if /^\d+$/.test name
+            return target.getLine(~~name)
+        if (name of target)
+            return target[name]
+        return undefined
 
-#synchronizeApi(t) for t in apiTypes
+    set: (target, name, val, receiver) ->
+        if name.charAt(0) == ':'
+            varName = name.substring(1)
+            target.setVar(varName, val)
+        else if name.charAt(0) == '&'
+            optName = name.substring(1)
+            target.setOption(optName, val)
+        else if /^\d+$/.test name
+            target.setLine(~~name, val)
+        else
+            target[name] = val
+        return true
 
-log.info Nvim.getCurrentWindow().getWidth()
-
-Nvim.getCurrentWindow (err, res) ->
-    sync.fiber -> log.warn res.getWidth()
+    deleteProperty: (target, name) ->
+        if /^\d+$/.test name
+            try target.delLine(~~name)
+            catch e
+                return false
+            return true
+        return Reflect.deleteProperty target, name
 
