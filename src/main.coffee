@@ -39,7 +39,7 @@ lib  = null
 clib = null
 
 # List of handlers for nvim requests
-handlers = {}
+commands = {}
 
 evalMethod = null
 
@@ -94,34 +94,72 @@ evalHandler = (code) ->
     catch e
         log.error e, e.stack
 
-# RPC request/notification handlers
+# RPC request/notification commands
 onNvimNotification = (method, args) ->
     log.info 'Notification: ', method, args.toString()
-    if handlers[method]?
-        fiber -> handlers[method] args...
+    if commands[method]?
+        fiber -> commands[method] args...
+    else
+        fiber -> callHandler(method, args)
 
 onNvimRequest = (method, args, resp) ->
+    log.info 'Request: ', method, args.toString()
     try
-        log.info 'Request: ', method, args.toString()
         if method is 'specs'
-            filename = args[0]
-            plugin = Plugin._load filename
-            _.extend handlers, plugin.handlers
-            resp.send(plugin.specs ? [])
+            return getSpecs args[0], resp
         else
-            resp.send 'nop', true
+            callHandler(method, args, resp)
     catch e
         log.error e.stack
-        resp.send e.toString(), true
+        return resp.send e.toString(), true
+    return resp.send 'noaction', true
 
-handlers['plugin'] = (file) ->
+onNvimDisconnect = () ->
+    log.error 'Nvim session closed'
+
+callHandler = (method, args, resp) ->
+    data     = method.split ':'
+    filename = data[0]
+    rest     = data[1..]
+    try
+        plugin = Plugin._load(filename)
+        if plugin?
+            handler = plugin.handler[rest]
+            rv = handler.apply plugin, args
+            resp.send rv
+        else
+            log.warning 'Plugin not found: ' + filename
+            resp.send 'Plugin not found', true if resp?
+    catch e
+        log.err method, args, e.stack
+        resp.send e.toString(), true if resp?
+
+getSpecs = (filename, resp) ->
+    try
+        log.success 'specs: ' + filename
+        plugin = Plugin._load filename
+        log.inspect plugin
+        if plugin?
+            return resp.send(plugin.specs ? [])
+    catch e
+        log.error e.stack
+        return resp.send e.toString(), true
+    resp.send('Coffee-nvim: file found: ' + filename, true)
+
+# Plugin-defined commands
+
+commands['CoffeePlugin'] = (file) ->
     try
         #file = clib.bufname(nr)
-        Plugin._load file
+        if Plugin._cache[file]?
+            delete Plugin._cache[file]
+        p = new Plugin file
+        p.load(lib.context)
+        global.res = p.exports
     catch e
         log.error e, e.stack
 
-handlers['vm'] = (file) ->
+commands['RunBufferInVM'] = (file) ->
     try
         #file = clib.bufname(nr)
         content = Fs.readFileSync file
@@ -131,7 +169,7 @@ handlers['vm'] = (file) ->
     catch e
         log.error e, e.stack
 
-handlers['eval'] = (file) ->
+commands['RunBuffer'] = (file) ->
     try
         #file = clib.bufname(nr)
         content = Fs.readFileSync file
@@ -141,8 +179,8 @@ handlers['eval'] = (file) ->
     catch e
         log.error e, e.stack
 
-defineHandler = (c, h) ->
-    def = "com! #{c} call rpcnotify(#{Nvim._channel_id}, '#{h}', expand('%:p'))"
+defineCommand = (name) ->
+    def = "com! #{name} call rpcnotify(#{Nvim._channel_id}, '#{name}', expand('%:p'))"
     Nvim.command def
 
 # Log server
@@ -152,14 +190,15 @@ log.method = (args...) -> sock.write args.join(' ')+'\n'
 fiber ->
     Nvim = await attach stdio[0], stdio[1], defer()
     if Nvim instanceof Error
-        log.error 'error connecting to neovim: ' + err
+        log.error Nvim.stack
         process.exit(1)
 
     global.log = log
     log.success 'connected to neovim, channel=' + Nvim._channel_id
 
-    Nvim.on 'request', onNvimRequest
+    Nvim.on 'request',      onNvimRequest
     Nvim.on 'notification', onNvimNotification
+    Nvim.on 'disconnect',   onNvimDisconnect
 
     try
         lib = require('./nvim')
@@ -170,8 +209,6 @@ fiber ->
     catch e
         log.error e.stack
 
-    defineHandler('RunBuffer',     'eval')
-    defineHandler('RunBufferInVM', 'vm')
-    defineHandler('CoffeePlugin',  'plugin')
+
 
 
