@@ -51,19 +51,10 @@ if argv.s == true
 
 # Socket data
 dataHandler = (data) ->
-    evalMethod ?= evalHandler
     data = data.toString().trim()
-    if data == 'vm'
-        log.info 'Evaluating with vm'
-        evalMethod = vmHandler
-        return
-    if data == 'eval'
-        log.info 'Evaluating with eval'
-        evalMethod = evalHandler
-        return
     coffee data, (status, code) ->
         if status == 0
-            fiber -> evalMethod(code)
+            fiber -> vmHandler(code)
         else
             log.error 'couldnt compile: ', data
 
@@ -82,17 +73,6 @@ vmHandler = (code) ->
                 log.debug sandbox.res
         catch e
             log.error e, e.stack
-
-# Eval try/catch
-evalHandler = (code) ->
-    try
-        result = eval(code)
-        if typeof result is 'object'
-            log.inspect result
-        else if result?
-            log.debug result
-    catch e
-        log.error e, e.stack
 
 # RPC request/notification commands
 onNvimNotification = (method, args) ->
@@ -201,13 +181,14 @@ fiber ->
     Nvim.on 'disconnect',   onNvimDisconnect
 
     try
-        lib = require('./nvim')
+        lib = require('./setup')
         clib = lib.init(Nvim)
         clib.log = log
 
         Plugin._context = lib.context
     catch e
         log.error e.stack
+        process.exit 1
 
 
 

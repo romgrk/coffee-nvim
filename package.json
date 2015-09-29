@@ -2,6 +2,7 @@
   "name": "neff",
   "version": "0.0.1",
   "description": "neovim rpc plugin",
+  "main": "lib/main.js",
   "dependencies": {
     "cli-color": "^1.0.0",
     "coffee-script": "^1.10.0",
@@ -13,9 +14,7 @@
     "traverse": "^0.6.6"
   },
   "devDependencies": {
-    "argv": "0.0.2",
-    "exectimer": "^1.0.2",
-    "shelljs": "^0.5.3"
+    "exectimer": "^1.0.2"
   },
   "scripts": {
     "server":      "nodemon --watch dev/server.js dev/server.js",
