@@ -46,35 +46,35 @@ class Plugin extends Module
     load: (context) ->
         if Plugin._cache[@filename]?
             return Plugin._cache[@filename]
-
+        
         @paths = Module._nodeModulePaths @filename
         extension = Path.extname @filename
-
+        
         require = (path) =>
             @require path
         require.resolve = (req) =>
             Module._resolveFilename req, @
-
+        
         context ?= Plugin._context ? {}
         context.__filename = @filename
         context.__dirname  = @dirname
         context.module  = this
         context.require = require.bind(@)
         context.define  = @define.bind(@)
-
+        
         sandbox = Vm.createContext context
         if extension is '.coffee'
             code = CoffeeScript._compileFile @filename
         else
             code = Fs.readFileSync @filename
         code = Module.wrap code
-
+        
         compiled = Vm.runInContext code, sandbox
         exports  = compiled.apply(@exports, [@exports, require, @, @filename, @dirname])
-
-        @loaded = true
+        
         Plugin._cache[@filename] = this
-
+        @loaded = true
+         
         return exports
 
     define: (type, name, cb, sync=false, opts={}) ->
@@ -92,9 +92,9 @@ class Plugin extends Module
             sync: sync
             opts: opts
         if type is 'autocmd'
-            assert(opts.pattern?)
-            spec.name += ":#{opts.pattern}"
-        @handlers["#{type}:#{spec.name}"] = cb
+            @handlers["#{type}:#{name}:#{opts.pattern ? '*'}"] = cb
+        else
+            @handlers["#{type}:#{name}"] = cb
         @specs.push spec
 
 module.exports = Plugin

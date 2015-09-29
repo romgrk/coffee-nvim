@@ -1,46 +1,67 @@
 # !::coffee [../lib]
 
 Reflect = require 'harmony-reflect'
-sync = '../dev/sync'
-fiber   = sync.fiber
-await   = sync.await
-defer   = sync.defer
+
+sync  = require 'synchronize'
+fiber = sync.fiber
+await = sync.await
+defer = sync.defer
 
 Nvim = null
 
 module.exports = (nvim) ->
     Nvim = nvim
-    for k, v of properties
-        Object.defineProperty lib, k, v
+    for property, desc of accessors
+        Object.defineProperty lib, property, desc
     return lib
 
-properties =
+accessors =
     windows:
         get: -> Nvim.getWindows()
     buffers:
         get: -> Nvim.getBuffers()
     buffer:
-        get: -> Nvim.getCurrentBuffer()
+        get: -> Nvim.getCurrentBuffer().getProxy()
         set: (b) -> Nvim.setCurrentBuffer b
     window:
-        get: -> Nvim.getCurrentWindow()
+        get: -> Nvim.getCurrentWindow().getProxy()
         set: (b) -> Nvim.setCurrentWindow b
     tabpage:
-        get: -> Nvim.getCurrentTabpage()
+        get: -> Nvim.getCurrentTabpage().getProxy()
         set: (b) -> Nvim.setCurrentTabpage b
 
 lib = {}
 
 lib.echo = (args...) ->
-    Nvim.command( "echo '#{args.join(' ')}'")
+    Nvim.command( "echo '#{args.join(' ').replace(/[\\']/g, '$&')}'")
+
+lib.echon = (args...) ->
+    Nvim.command( "echon '#{args.join(' ').replace(/[\\']/g, '$&')}'")
 
 lib.echohl = (args...) ->
-    hl = if args.length == 1 then 'TextInfo' else args[0]
-    msg = if args.length == 1 then args[0] else args[1..].join ' '
-    Nvim.command( "EchoHL #{hl} #{msg}")
+    return if args.length == 0
+    hl = args[0]
+    if args.length == 1
+        Nvim.command( "echohl #{hl}")
+    else
+        msg = args[1..].join ' '
+        Nvim.command( "echohl #{hl}")
+        Nvim.command( "echo '#{msg}'")
+        Nvim.command( "echohl None")
 
-lib.eval = (text) ->
-    return Nvim.eval(text)
+lib.echonhl = (args...) ->
+    return if args.length == 0
+    hl = args[0]
+    if args.length == 1
+        Nvim.command( "echohl #{hl}")
+    else
+        msg = args[1..].join ' '
+        Nvim.command( "echohl #{hl}")
+        Nvim.command( "echon '#{msg}'")
+        Nvim.command( "echohl None")
+
+#lib.eval = (text) ->
+    #return Nvim.eval(text)
 
 lib.bufnr = (expr) ->
     return Nvim.eval "bufnr('#{expr}')"
@@ -60,6 +81,15 @@ lib.normal = (seq, nore=true) ->
 
 lib.execute = (seq) ->
     Nvim.command seq
+
+lib.call = (fname, args...) ->
+    Nvim.callFunction fname, (args ? [])
+
+lib.input = (keys) ->
+    Nvim.input(keys)
+
+lib.feedkeys = (args...) ->
+    Nvim.feedkeys args[0], (args[1] ? 'n'), (args[2] ? false)
 
 lib.insert = (lnum, lines) ->
     buf = Nvim.getCurrentBuffer()

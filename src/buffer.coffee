@@ -3,11 +3,13 @@
 Reflect = require 'harmony-reflect'
 
 module.exports = buffer =
+
     BufferProxy: BufferProxy
+
     init: (type) ->
         for key, definition of @properties
             Object.defineProperty type, key, definition
-        type.proxy = ->
+        type.getProxy = type.proxy = ->
             return new BufferProxy @
 
 buffer.properties =
@@ -29,7 +31,6 @@ buffer.proxy =
 class BufferProxy
     constructor: (target) ->
         return new Proxy target, @
-
 
     get: (target, name, receiver) ->
         switch name.charAt(0)
