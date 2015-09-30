@@ -1,14 +1,8 @@
-# !::coffee [../lib]
+# !::coffee [../../lib/nvim]
 
 Reflect = require 'harmony-reflect'
 
-module.exports = Tabpage =
-    init: (type) ->
-        for key, definition of @properties
-            Object.defineProperty type, key, definition
-        type.getProxy = ->
-            return new TabpageProxy @
-
+Tabpage = {}
 Tabpage.properties =
     window:
         get: -> return @getWindow()
@@ -17,8 +11,10 @@ Tabpage.properties =
     valid:
         get: -> return @isValid()
 
+module.exports = 
 class TabpageProxy
     constructor: (target) ->
+        Object.defineProperties target, Tabpage.properties
         return new Proxy target, @
 
     get: (target, name, receiver) ->

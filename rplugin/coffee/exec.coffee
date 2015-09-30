@@ -1,10 +1,9 @@
-# !::exe [CoffeelibPlugin]
-
+# ::exe [CoffeelibPlugin]
 
 onBufEnter = (args) ->
-    log.warn args.toString()
+    log.warn 'BufEnter', __filename, ' ('+args.toString()+')'
 
-#module.define 'autocmd', 'BufEnter', onBufEnter, false, {pattern: '*.coffee', eval: 'expand("<abuf>")'}
-
+module.define 'autocmd', 'BufEnter', onBufEnter,
+    {pattern: __filename, eval: 'expand("<abuf>")'}
 
 undefined

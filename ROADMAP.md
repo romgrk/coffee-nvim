@@ -1,9 +1,8 @@
 
+# Global
 
-# Tasks
-- coffee compile/eval module
-- sync/async handling
-- rpc specs
-- rpc request/notification handling
-- commands definition
+# Remote Host
+- fix: capture initial request
 
+# Lib
+- define: lines

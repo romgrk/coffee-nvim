@@ -9,48 +9,57 @@ Fs   = require 'fs'
 Vm   = require 'vm'
 
 CoffeeScript = require 'coffee-script'
-Reflect      = require 'harmony-reflect'
-attach       = require 'neovim-client'
 
-Logger = require 'romgrk-logger'
-util   = require 'util'
+Reflect = require 'harmony-reflect'
+attach  = require 'neovim-client'
+
+Logger  = require 'romgrk-logger'
 
 Plugin = require './plugin'
-
-sync   = require 'synchronize'
+coffee = require '../dev/compile'
+sync   = require '../dev/sync'
 fiber  = sync.fiber
 await  = sync.await
 defer  = sync.defer
 
+argv = require('minimist')(process.argv.slice(2))
+
 # }}}
 # Settings ================================================================={{{
 
-# Stdio for msgpack data transfer
-stdio = [process.stdout, process.stdin]
+log  = Logger(console.log)
+global.log = log
 
-# Log server
+argv.s ?= false
+
 PORT = 5000
-sock = null
+sock = Net.createConnection PORT
 
 #===========================================================================}}}
 
 # Nvim instance
 Nvim      = null
+lib       = null
 coffeelib = null
-loaded    = false
 
-# List of commands
+# List of handlers for nvim requests
 commands = {}
+
+# Stdio for msgpack data transfer
+stdio = [process.stdout, process.stdin]
+if argv.s == true
+    nvimSocket = Net.createConnection port:6666
+    stdio = [nvimSocket, nvimSocket]
 
 # Socket data
 dataHandler = (data) ->
     data = data.toString().trim()
-    try
-        code = CoffeeScript.compile data, bare: true
-    catch e
-        log.error e.stack
-        return
-    fiber -> vmHandler(code)
+
+    coffee data, (status, code) ->
+        if status == 0
+            fiber -> vmHandler(code)
+        else
+            log.error 'couldnt compile: ', data
 
 # Vm run
 vmHandler = (code) ->
@@ -60,37 +69,28 @@ vmHandler = (code) ->
         context.log     = log
         context.sync    = sync
         context.require = require
-        context.process = process
         sandbox = Vm.createContext context
         res = Vm.runInContext(code, sandbox)
         if res?
-            if typeof res is 'object'
-                log.debug util.inspect(res, depth:1)
-            else
-                log.debug res
+            log.debug res
     catch e
         log.error e, e.stack
 
-# RPC request/notification
-
+# RPC request/notification commands
 onNvimNotification = (method, args) ->
     log.info 'Notification: ', method, args.toString()
-    return if method is ''
     if commands[method]?
         fiber -> commands[method] args...
     else
         fiber -> callHandler(method, args)
 
 onNvimRequest = (method, args, resp) ->
-    if method is 'poll'
-        resp.send 'ok'
-        return
-    if method is 'specs'
-        getSpecs args[0], resp
-        return 
     log.info 'Request: ', method, args.toString()
     try
-        callHandler(method, args, resp)
+        if method is 'specs'
+            return getSpecs args[0], resp
+        else
+            callHandler(method, args, resp)
     catch e
         log.error e.stack
         return resp.send e.toString(), true
@@ -102,13 +102,13 @@ onNvimDisconnect = () ->
 callHandler = (method, args, resp) ->
     data     = method.split ':'
     filename = data[0]
-    rest     = data[1..].join(':')
+    rest     = data[1..]
     try
         plugin = Plugin._load(filename)
         if plugin?
-            handler = plugin.handlers[rest]
+            handler = plugin.handler[rest]
             rv = handler.apply plugin, args
-            resp?.send rv
+            resp.send rv
         else
             log.warning 'Plugin not found: ' + filename
             resp.send 'Plugin not found', true if resp?
@@ -118,83 +118,74 @@ callHandler = (method, args, resp) ->
 
 getSpecs = (filename, resp) ->
     try
+        log.success 'specs: ' + filename
         plugin = Plugin._load filename
+        log.inspect plugin
         if plugin?
-            plugin.specs ?= []
-            resp.send(plugin.specs)
-            log.success 'specs: '+filename, plugin.specs
-            #log.inspect plugin
-        else
-            resp.send false
+            return resp.send(plugin.specs ? [])
     catch e
-        resp.send false
-        log.error 'SPECS:'+filename
         log.error e.stack
+        return resp.send e.toString(), true
+    resp.send('Coffee-nvim: file found: ' + filename, true)
 
-# Plugin: commands
+# Plugin-defined commands
 
-commands['CoffeelibPlugin'] = (file) ->
+commands['CoffeePlugin'] = (file) ->
     try
         if Plugin._cache[file]?
             delete Plugin._cache[file]
         p = new Plugin file
-        p.load(coffeelib)
+        p.load(lib.context)
         global.res = p.exports
     catch e
         log.error e, e.stack
 
-commands['CoffeelibRun'] = (file) ->
+commands['RunBufferInVM'] = (file) ->
     try
-        content = Fs.readFileSync(file).toString()
-        code = CoffeeScript.compile(content, bare: true)
-        vmHandler(code)
+        content = Fs.readFileSync file
+        [status, code] = coffee(content)
+        vmHandler(code) if status == 0
+        throw new Error("couldnt compile "+file) if status == 1
     catch e
         log.error e, e.stack
 
-# Define command
-defineCommand = (name) ->
-    def = "command! #{name} call rpcnotify(#{Nvim._channel_id},"
-    def += " '#{name}', expand('%:p'))"
-    Nvim.command(def)
+commands['RunBuffer'] = (file) ->
+    try
+        content = Fs.readFileSync file
+        [status, code] = coffee(content)
+        evalHandler(code) if status == 0
+        throw new Error("couldnt compile "+file) if status == 1
+    catch e
+        log.error e, e.stack
 
+defineCommand = (name) ->
+    def = "com! #{name} call rpcnotify(#{Nvim._channel_id}, '#{name}', expand('%:p'))"
+    Nvim.command def
 
 # Log server
-sock = Net.createConnection PORT
 sock.on 'data', dataHandler
-global.log = log  = Logger(console.log)
 log.method = (args...) -> sock.write args.join(' ')+'\n'
 
-# Nvim pairing
-attach stdio[0], stdio[1], (err, nvim) ->
-    if err
-        log.error 'Couldnt initiate nvim', err.stack
-        return
+fiber ->
     try
-        hostSetup(nvim)
-    catch e
-        log.error 'Couldnt setup host', e.stack
+        Nvim = await attach stdio[0], stdio[1], defer()
 
-# Main setup
-hostSetup = (nvim) ->
-    global.Nvim = Nvim = nvim
+        lib = require('./setup')
+        coffeelib = lib.init(Nvim)
+        coffeelib.log = log
+    catch e
+        log.error 'Couldnt initiate coffeelib', e.stack
+        process.exit 1
+
+    log.success 'connected to neovim, channel=' + Nvim._channel_id
+
     Nvim.on 'request',      onNvimRequest
     Nvim.on 'notification', onNvimNotification
     Nvim.on 'disconnect',   onNvimDisconnect
-    
-    # Coffeelib
-    coffeelib = require('./setup')
-    coffeelib.log = log
-    
-    Plugin._context = coffeelib
 
-    log.success 'connected to neovim, channel=' + Nvim._channel_id
-    
-    loaded = true
-    
-    #for c of commands
-        #log.info 'Defining ' + c
-        #defineCommand(c)
+    defineCommand(c) for c in commands
 
+    Plugin._context = lib.context
 
 
 

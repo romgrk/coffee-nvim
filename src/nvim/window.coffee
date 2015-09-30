@@ -1,14 +1,8 @@
-# !::coffee [../lib]
+# !::coffee [../../lib/nvim]
 
 Reflect = require 'harmony-reflect'
 
-module.exports = Window =
-    init: (type) ->
-        for key, definition of @properties
-            Object.defineProperty type, key, definition
-        type.getProxy = ->
-            return new WindowProxy @
-
+Window = {}
 Window.properties =
     buffer:
         get: -> return @getBuffer()
@@ -28,8 +22,10 @@ Window.properties =
     valid:
         get: -> return @isValid()
 
+module.exports =
 class WindowProxy
     constructor: (target) ->
+        Object.defineProperties target, Window.properties
         return new Proxy target, @
 
     get: (target, name, receiver) ->

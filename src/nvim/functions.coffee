@@ -1,36 +1,6 @@
-# !::coffee [../lib]
+# !::coffee [../../lib/nvim]
 
-Reflect = require 'harmony-reflect'
-
-sync  = require 'synchronize'
-fiber = sync.fiber
-await = sync.await
-defer = sync.defer
-
-Nvim = null
-
-module.exports = (nvim) ->
-    Nvim = nvim
-    for property, desc of accessors
-        Object.defineProperty lib, property, desc
-    return lib
-
-accessors =
-    windows:
-        get: -> Nvim.getWindows()
-    buffers:
-        get: -> Nvim.getBuffers()
-    buffer:
-        get: -> Nvim.getCurrentBuffer().getProxy()
-        set: (b) -> Nvim.setCurrentBuffer b
-    window:
-        get: -> Nvim.getCurrentWindow().getProxy()
-        set: (b) -> Nvim.setCurrentWindow b
-    tabpage:
-        get: -> Nvim.getCurrentTabpage().getProxy()
-        set: (b) -> Nvim.setCurrentTabpage b
-
-lib = {}
+module.exports = lib = {}
 
 lib.echo = (args...) ->
     Nvim.command( "echo '#{args.join(' ').replace(/[\\']/g, '$&')}'")
@@ -60,8 +30,11 @@ lib.echonhl = (args...) ->
         Nvim.command( "echon '#{msg}'")
         Nvim.command( "echohl None")
 
-#lib.eval = (text) ->
-    #return Nvim.eval(text)
+lib.eval = (text) ->
+    return Nvim.eval(text)
+
+lib.get = (varname) -> 
+    return Nvim.getVar varname
 
 lib.bufnr = (expr) ->
     return Nvim.eval "bufnr('#{expr}')"
