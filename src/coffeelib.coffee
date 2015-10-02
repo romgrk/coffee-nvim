@@ -48,28 +48,23 @@ Nvim         = require('./nvim/nvim')
 BufferProxy  = require('./nvim/buffer')
 TabpageProxy = require('./nvim/tabpage')
 WindowProxy  = require('./nvim/window')
-{VimProxy, CursorProxy} = require('./nvim/proxies')
+{CurrentProxy, VimProxy, CursorProxy} = require('./nvim/proxies')
 
 # Reference
 lib.Nvim = lib.nvim = Nvim
 
 # current objects
-DEFINE 
-    buffer:
-        get: -> Nvim.getCurrentBuffer()
-        set: (b) -> Nvim.setCurrentBuffer b
+DEFINE current:
+    value: new CurrentProxy
+
+DEFINE
     buffers:
-        get: -> Nvim.getBuffers()
-    window:
-        get: -> Nvim.getCurrentWindow()
-        set: (b) -> Nvim.setCurrentWindow b
+        get: -> 
+            _.filter Nvim.getBuffers(), (b) -> b.listed
     windows:
-        get: -> _.map Nvim.getWindows(), (b) -> b.getProxy()
-    tabpage:
-        get: -> Nvim.getCurrentTabpage().getProxy()
-        set: (b) -> Nvim.setCurrentTabpage b
-    tabpages:
-        get: -> _.map Nvim.getTabpages(), (b) -> b.getProxy()
+        get: -> Nvim.getWindows()
+    tabs:
+        get: -> Nvim.getTabpages()
 
 # current cursor
 DEFINE cursor:

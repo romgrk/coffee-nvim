@@ -169,7 +169,6 @@ attach stdio[0], stdio[1], (err, nvim) ->
         hostSetup(nvim)
     catch e
         log.error 'Couldnt setup host', e.stack
-
 # Main setup
 hostSetup = (nvim) ->
     global.Nvim = Nvim = nvim
@@ -179,7 +178,7 @@ hostSetup = (nvim) ->
     
     # Coffeelib
     coffeelib = require('./coffeelib')
-    coffeelib.log = log
+    coffeelib.log = log if sock?
     
     Plugin._context = coffeelib
 

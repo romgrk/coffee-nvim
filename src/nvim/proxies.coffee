@@ -71,5 +71,20 @@ class CursorProxy
             target[name] val
         return true
 
+class CurrentProxy
+    constructor: (target={}) ->
+        Object.defineProperties target, @properties
+        return new Proxy(target, this)
 
-module.exports = {VimProxy, CursorProxy, VarProxy, OptionProxy}
+    properties:
+        buffer: 
+            get: -> Nvim.getCurrentBuffer()
+            set: (b) -> Nvim.setCurrentBuffer b
+        window:
+            get: -> Nvim.getCurrentWindow()
+            set: (b) -> Nvim.setCurrentWindow b
+        tab:
+            get: -> Nvim.getCurrentTabpage()
+            set: (b) -> Nvim.setCurrentTabpage b
+
+module.exports = {VimProxy, CursorProxy, VarProxy, OptionProxy, CurrentProxy}

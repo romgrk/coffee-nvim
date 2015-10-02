@@ -6,17 +6,14 @@ hh      = require '../helpers'
 Reflect = require 'harmony-reflect'
 
 Nvim = global.Nvim
-Nvim:: = Object.getPrototypeOf Nvim
+Nvim.super = _.extend({}, Nvim)
 
-hh.superClass(Nvim::constructor)
+Nvim.getCurrentBuffer = -> @super.getCurrentBuffer().getProxy()
+Nvim.getCurrentWindow = -> @super.getCurrentWindow().getProxy()
+Nvim.getCurrentTabpage = -> @super.getCurrentTabpage().getProxy()
 
-Nvim::getCurrentBuffer = -> super().getProxy()
-Nvim::getCurrentWindow = -> super().getProxy()
-Nvim::getCurrentTabpage = -> super().getProxy()
-
-Nvim::getBuffers = -> _.map super().getProxy()
-Nvim::getWindows = -> _.map super().getProxy()
-Nvim::getTabpages = -> _.map super().getProxy()
-
+Nvim.getBuffers = -> _.map @super.getBuffers(), (e) -> e.getProxy()
+Nvim.getWindows = -> _.map @super.getWindows(), (e) -> e.getProxy()
+Nvim.getTabpages = -> _.map @super.getTabpages(), (e) -> e.getProxy()
 
 module.exports = Nvim
