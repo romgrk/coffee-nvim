@@ -10,18 +10,22 @@ fiber   = sync.fiber
 await   = sync.await
 defer   = sync.defer
 
-#===========================================================================}}}
+hh = require './helpers'
 
-# Define class
-superClass = (type) ->
-    type.__super__ = _.extend({}, type::)
+#===========================================================================}}}
+# lib global context
+
+module.exports = lib = {}
+
+#===========================================================================}}}
+# Helpers
 
 # Define properties
-define = (obj, properties) -> 
-    Object.defineProperties obj, properties
+DEFINE = (properties) -> 
+    Object.defineProperties lib, properties
 
 # Synchronize API functions, whilst keeping metadata
-synchronize = (object) ->
+SYNCHRONIZE = (object) ->
     for k, v of object
         apiFunc = object[k]?.metadata?
         continue unless apiFunc
@@ -31,35 +35,27 @@ synchronize = (object) ->
 
 #===========================================================================}}}
 
+# Make API functions sync unless called with callback
+SYNCHRONIZE Nvim
+SYNCHRONIZE Nvim.Buffer::
+SYNCHRONIZE Nvim.Window::
+SYNCHRONIZE Nvim.Tabpage::
 
-synchronize Nvim
-synchronize Nvim.Buffer::
-synchronize Nvim.Window::
-synchronize Nvim.Tabpage::
-
+# Proxy objects
 VimProxy     = require('./nvim/vim')
 CursorProxy  = require('./nvim/cursor')
 BufferProxy  = require('./nvim/buffer')
 TabpageProxy = require('./nvim/tabpage')
 WindowProxy  = require('./nvim/window')
 
-superClass(Nvim.Buffer)
-Nvim.Buffer::getProxy = -> @_proxy ?= new BufferProxy(@)
-
-superClass(Nvim.Tabpage)
-Nvim.Tabpage::getProxy = -> @_proxy ?= new TabpageProxy @
-
-superClass(Nvim.Window)
-Nvim.Window::getProxy = -> @_proxy ?= new WindowProxy @
-Nvim.Window::getCursor = -> new CursorProxy @, super()
+hh.superClass(Nvim)
 
 # Lib setup
-module.exports = lib = {}
-
 lib.Nvim = Nvim
 lib.nvim = Nvim
 
-define lib, 
+# current objects
+DEFINE 
     buffer:
         get: -> Nvim.getCurrentBuffer().getProxy()
         set: (b) -> Nvim.setCurrentBuffer b
@@ -76,17 +72,26 @@ define lib,
     tabpages:
         get: -> _.map Nvim.getTabpages(), (b) -> b.getProxy()
 
-define lib, cursor:
+# current cursor
+DEFINE cursor:
     get: -> 
         Nvim.getCurrentWindow().getCursor()
     set: (val) ->
         if typeof val is 'number'
             Nvim.getCurrentWindow().setCursor [val, 0]
+        else if typeof val is 'object'
+            Nvim.getCurrentWindow().setCursor [val.line ? cursor.line, val.row ? cursor.row]
         else
             Nvim.getCurrentWindow().setCursor [val[0], val[1]]
-            
-define lib, vim:
+
+# Vim vars
+DEFINE vim:
     value: new VimProxy()
+
+# call.FUNCNAME -> Nvim.callFunction "FUNCNAME", args...
+DEFINE call:
+    value: new Proxy {}, get: (t, fn) -> 
+        (args...) -> Nvim.callFunction(fn, args ? [])
 
 # Functions
 _.extend lib, require('./nvim/functions')

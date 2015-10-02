@@ -2,9 +2,10 @@
 " Author: romgrk
 " Description: rcplugin host spawner
 " Date: 29 Sep 2015
-" Exeline: !::exe [so %]
+" Exeline: ::exe [so %]
 
-let COFFEELIB_DIR = expand('<sfile>:p:h:h')
+let COFFEELIB_CHANNEL = -1
+let COFFEELIB_DIR     = expand('<sfile>:p:h:h')
 
 function! coffeelib#isChannelActive (num) 
     try
@@ -17,8 +18,7 @@ endfunction
 
 function! coffeelib#RequireHost (host) 
     let isClone = get(a:host, 'name', '') =~? 'registration-clone'
-    if !isClone
-        \ && exists('g:COFFEELIB_CHANNEL')
+    if exists('g:COFFEELIB_CHANNEL')
         \ && coffeelib#isChannelActive(g:COFFEELIB_CHANNEL)
         return g:COFFEELIB_CHANNEL
     endif
@@ -50,14 +50,15 @@ function! coffeelib#RequireHost (host)
     endtry
 endfunction
 
+"call coffeelib#RequireHost([])
 call remote#host#Register('coffee', '*.coffee', function('coffeelib#RequireHost'))
 
 "if !exists('g:debug')
     "finish
 "end
 
-nmap <F1> :echo coffeelib#RequireHost([])<CR>
-nmap <F2> :echo rpcstop(<C-r>=g:COFFEELIB_CHANNEL<CR>)<CR>
+nmap <F1> :echo 'start: ' . coffeelib#RequireHost([])<CR>
+nmap <F2> :echo 'stop: ' . rpcstop(<C-r>=g:COFFEELIB_CHANNEL<CR>)<CR>
 
 function! remote#host#RegisterPlugin(host, path, specs)
     let plugins = remote#host#PluginsForHost(a:host)

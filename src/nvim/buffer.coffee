@@ -3,6 +3,8 @@
 _       = require 'lodash'
 Reflect = require 'harmony-reflect'
 
+hh      = require '../helpers'
+
 class LineProxy
     buffer: null
 
@@ -31,40 +33,46 @@ class LineProxy
             return true
         return Reflect.deleteProperty target, name
 
-BufferObject = {}
 
+hh.superClass(Nvim.Buffer)
+
+#Nvim.Buffer::getOption = (args...) -> RES super(args...)
+
+Nvim.Buffer::getProxy = -> @_proxy ?= new BufferProxy(@)
+Nvim.Buffer::delete =  -> Nvim.command 'bdelete ' + @number
+Nvim.Buffer::wipeout = -> Nvim.command 'bwipeout ' + @number
+
+BufferObject = {}
 BufferObject.properties =
     length:
-        get: -> return @lineCount()
+        get: -> @lineCount()
     number:
-        get: -> return @getNumber()
+        get: -> @_number ?= @getNumber()
     name:
-        get: -> return @getName()
+        get: -> @getName()
         set: (v) -> @setName(v)
     valid:
-        get: -> return @isValid()
+        get: -> @isValid()
     listed:
-        get: -> return @getOption('buflisted')
+        get: -> @getOption('buflisted')
         set: (v) -> @setOption('buflisted', v)
     type:
-        get: -> return @getOption('buftype')
+        get: -> @getOption('buftype')
         set: (v) -> @setOption('buftype', v)
 
-BufferObject.methods = 
-    delete: ->
-        Nvim.command 'bdelete ' + @number
-    wipeout: ->
-        Nvim.command 'bwipeout ' + @number
+hh.addOptionDesc BufferObject, 'ft', 'filetype'
 
 module.exports =
 class BufferProxy
     @LineProxy: LineProxy
 
-    constructor: (buffer) ->
-        _.extend buffer, BufferObject.methods
-        Object.defineProperties(buffer, BufferObject.properties)
-        buffer.lines = new LineProxy(buffer, {})
-        return new Proxy buffer, @
+    # Instance
+    buffer: null
+
+    constructor: (@buffer) ->
+        Object.defineProperties(@buffer, BufferObject.properties)
+        @buffer.lines = new LineProxy(@buffer, {})
+        return new Proxy @buffer, @
 
     get: (target, name, receiver) ->
         switch name.charAt(0)

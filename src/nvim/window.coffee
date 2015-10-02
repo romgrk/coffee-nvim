@@ -2,6 +2,16 @@
 
 Reflect = require 'harmony-reflect'
 
+hh      = require '../helpers'
+
+hh.superClass(Nvim.Window)
+
+#Nvim.Window::getOption = (args...) -> RES super(args...)
+
+Nvim.Window::getProxy = -> @_proxy ?= new WindowProxy @
+Nvim.Window::getCursor = -> new CursorProxy @, super()
+Nvim.Window::getBuffer = -> super().getProxy()
+
 Window = {}
 Window.properties =
     buffer:
@@ -22,6 +32,8 @@ Window.properties =
     valid:
         get: -> return @isValid()
 
+hh.addOptionDesc Window, 'statusline', 'statusline'
+
 module.exports =
 class WindowProxy
     constructor: (target) ->
@@ -36,8 +48,6 @@ class WindowProxy
             when '&'
                 optName = name.substring(1)
                 return target.getOption(optName)
-        if /^\d+$/.test name
-            return target.getLine(parseInt name)
         if (name of target)
             return target[name]
         return undefined
@@ -49,8 +59,6 @@ class WindowProxy
         else if name.charAt(0) == '&'
             optName = name.substring(1)
             target.setOption(optName, val)
-        else if /^\d+$/.test name
-            target.setLine(parseInt(name), val)
         else
             target[name] = val
         return true

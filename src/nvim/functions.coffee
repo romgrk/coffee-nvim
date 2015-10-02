@@ -30,7 +30,7 @@ lib.echonhl = (args...) ->
         Nvim.command( "echon '#{msg}'")
         Nvim.command( "echohl None")
 
-lib.eval = (text) ->
+            .lib.eval = (text) ->
     return Nvim.eval(text)
 
 lib.get = (varname) -> 
@@ -55,16 +55,12 @@ lib.normal = (seq, nore=true) ->
 lib.execute = (seq) ->
     Nvim.command seq
 
-lib.call = (fname, args...) ->
-    Nvim.callFunction fname, (args ? [])
-
 lib.input = (keys) ->
     Nvim.input(keys)
 
 lib.feedkeys = (args...) ->
     Nvim.feedkeys args[0], (args[1] ? 'n'), (args[2] ? false)
 
-lib.insert = (lnum, lines) ->
-    buf = Nvim.getCurrentBuffer()
-    buf.insert lnum, lines
+
+
 

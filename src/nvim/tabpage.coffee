@@ -2,6 +2,13 @@
 
 Reflect = require 'harmony-reflect'
 
+hh = require '../helpers'
+
+hh.superClass(Nvim.Tabpage)
+
+Nvim.Tabpage::getProxy = -> @_proxy ?= new TabpageProxy @
+Nvim.Tabpage::getWindow = -> super().getProxy()
+
 Tabpage = {}
 Tabpage.properties =
     window:

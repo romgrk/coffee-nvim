@@ -182,7 +182,7 @@ hostSetup = (nvim) ->
     Nvim.on 'disconnect',   onNvimDisconnect
     
     # Coffeelib
-    coffeelib = require('./setup')
+    coffeelib = require('./coffeelib')
     coffeelib.log = log
     
     Plugin._context = coffeelib
@@ -191,9 +191,9 @@ hostSetup = (nvim) ->
     
     loaded = true
     
-    #for c of commands
-        #log.info 'Defining ' + c
-        #defineCommand(c)
+    for c of commands
+        log.info 'Defining ' + c
+        defineCommand(c)
 
 
 
