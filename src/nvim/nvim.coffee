@@ -2,7 +2,6 @@
 
 _       = require 'lodash'
 hh      = require '../helpers'
-
 Reflect = require 'harmony-reflect'
 
 Nvim = global.Nvim

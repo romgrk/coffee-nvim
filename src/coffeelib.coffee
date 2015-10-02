@@ -36,6 +36,7 @@ SYNCHRONIZE = (object) ->
 #===========================================================================}}}
 
 Nvim = global.Nvim
+lib.Nvim = lib.nvim = Nvim
 
 # Make API functions sync unless called with callback
 SYNCHRONIZE Nvim
@@ -50,23 +51,28 @@ TabpageProxy = require('./nvim/tabpage')
 WindowProxy  = require('./nvim/window')
 {CurrentProxy, VimProxy, CursorProxy} = require('./nvim/proxies')
 
-# Reference
-lib.Nvim = lib.nvim = Nvim
+Functions   = require('./nvim/functions')
+{Highlight} = require('./nvim/highlight')
 
-# current objects
+lib.Highlight = lib.hl = Highlight
+
+_.extend lib, Functions
+
+# Properties
+
 DEFINE current:
     value: new CurrentProxy
 
-DEFINE
-    buffers:
-        get: -> 
-            _.filter Nvim.getBuffers(), (b) -> b.listed
-    windows:
-        get: -> Nvim.getWindows()
-    tabs:
-        get: -> Nvim.getTabpages()
+DEFINE buffers:
+    get: -> 
+        _.filter Nvim.getBuffers(), (b) -> b.listed
 
-# current cursor
+DEFINE windows:
+    get: -> Nvim.getWindows()
+
+DEFINE tabs:
+    get: -> Nvim.getTabpages()
+
 DEFINE cursor:
     get: -> 
         Nvim.getCurrentWindow().getCursor()
@@ -81,15 +87,5 @@ DEFINE cursor:
 # Vim vars
 DEFINE vim:
     value: new VimProxy()
-
-# call.FUNCNAME -> Nvim.callFunction "FUNCNAME", args...
-DEFINE call:
-    value: new Proxy {}, get: (t, fn) -> 
-        (args...) -> Nvim.callFunction(fn, args ? [])
-
-# Functions
-_.extend lib, require('./nvim/functions')
-
-
 
 

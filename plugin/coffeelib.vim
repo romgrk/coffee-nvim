@@ -33,7 +33,8 @@ function! coffeelib#RequireHost (host)
 
     try
         let channel = rpcstart(prog, args)
-        echo prog . ', ' . string(args)
+        "echo prog . ', ' . string(args)
+        
         if !isClone
             let g:COFFEELIB_CHANNEL = channel
         else
@@ -50,12 +51,14 @@ function! coffeelib#RequireHost (host)
     endtry
 endfunction
 
-"call coffeelib#RequireHost([])
-call remote#host#Register('coffee', '*.coffee', function('coffeelib#RequireHost'))
+if exists('g:COFFEELIB_ENABLE')
+    call coffeelib#RequireHost([])
+    call remote#host#Register('coffee', '*.coffee', function('coffeelib#RequireHost'))
+end
 
-"if !exists('g:debug')
-    "finish
-"end
+if !exists('g:debug')
+    finish
+end
 
 nmap <F1> :echo 'start: ' . coffeelib#RequireHost([])<CR>
 nmap <F2> :echo 'stop: ' . rpcstop(<C-r>=g:COFFEELIB_CHANNEL<CR>)<CR>

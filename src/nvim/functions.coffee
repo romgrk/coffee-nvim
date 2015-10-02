@@ -2,6 +2,13 @@
 
 module.exports = lib = {}
 
+# Generic proxy
+
+lib.call = new Proxy {}, get: (t, fn) -> 
+    (args...) -> Nvim.callFunction(fn, args ? [])
+
+# Commonly used
+
 lib.echo = (args...) ->
     Nvim.command( "echo '#{args.join(' ').replace(/[\\']/g, '$&')}'")
 

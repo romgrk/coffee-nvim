@@ -6,7 +6,6 @@
   "dependencies": {
     "cli-color": "^1.0.0",
     "coffee-script": "^1.10.0",
-    "coffeescript-compiler": "^0.1.1",
     "lodash": "^3.10.1",
     "minimist": "^1.2.0",
     "neovim-client": "^1.0.4",
@@ -17,8 +16,6 @@
     "exectimer": "^1.0.2"
   },
   "scripts": {
-    "server":      "nodemon --watch dev/server.js dev/server.js",
-    "main":        "nodemon --watch lib/main.js lib/main.js -s",
-    "dev:compile": "nodemon --watch dev/compile.js dev/compile.js"
+    "server":      "node dev/server"
   }
 }
