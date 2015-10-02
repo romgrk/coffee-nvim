@@ -36,9 +36,8 @@ class LineProxy
 
 hh.superClass(Nvim.Buffer)
 
-#Nvim.Buffer::getOption = (args...) -> RES super(args...)
-
 Nvim.Buffer::getProxy = -> @_proxy ?= new BufferProxy(@)
+
 Nvim.Buffer::delete =  -> Nvim.command 'bdelete ' + @number
 Nvim.Buffer::wipeout = -> Nvim.command 'bwipeout ' + @number
 

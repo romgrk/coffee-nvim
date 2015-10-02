@@ -1,7 +1,6 @@
 # !::coffee [../../lib/nvim]
 
 Reflect = require 'harmony-reflect'
-
 hh      = require '../helpers'
 
 hh.superClass(Nvim.Window)
@@ -11,6 +10,7 @@ hh.superClass(Nvim.Window)
 Nvim.Window::getProxy = -> @_proxy ?= new WindowProxy @
 Nvim.Window::getCursor = -> new CursorProxy @, super()
 Nvim.Window::getBuffer = -> super().getProxy()
+Nvim.Window::getTabpage = -> super().getProxy()
 
 Window = {}
 Window.properties =
@@ -31,8 +31,8 @@ Window.properties =
         get: -> return @getTabpage()
     valid:
         get: -> return @isValid()
+    status: hh.getOptionDesc 'statusline'
 
-hh.addOptionDesc Window, 'statusline', 'statusline'
 
 module.exports =
 class WindowProxy

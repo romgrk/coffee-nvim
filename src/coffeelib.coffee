@@ -35,34 +35,33 @@ SYNCHRONIZE = (object) ->
 
 #===========================================================================}}}
 
+Nvim = global.Nvim
+
 # Make API functions sync unless called with callback
 SYNCHRONIZE Nvim
 SYNCHRONIZE Nvim.Buffer::
 SYNCHRONIZE Nvim.Window::
 SYNCHRONIZE Nvim.Tabpage::
 
-# Proxy objects
-VimProxy     = require('./nvim/vim')
-CursorProxy  = require('./nvim/cursor')
+# Definitions
+Nvim         = require('./nvim/nvim')
 BufferProxy  = require('./nvim/buffer')
 TabpageProxy = require('./nvim/tabpage')
 WindowProxy  = require('./nvim/window')
+{VimProxy, CursorProxy} = require('./nvim/proxies')
 
-hh.superClass(Nvim)
-
-# Lib setup
-lib.Nvim = Nvim
-lib.nvim = Nvim
+# Reference
+lib.Nvim = lib.nvim = Nvim
 
 # current objects
 DEFINE 
     buffer:
-        get: -> Nvim.getCurrentBuffer().getProxy()
+        get: -> Nvim.getCurrentBuffer()
         set: (b) -> Nvim.setCurrentBuffer b
     buffers:
-        get: -> _.map Nvim.getBuffers(), (b) -> b.getProxy()
+        get: -> Nvim.getBuffers()
     window:
-        get: -> Nvim.getCurrentWindow().getProxy()
+        get: -> Nvim.getCurrentWindow()
         set: (b) -> Nvim.setCurrentWindow b
     windows:
         get: -> _.map Nvim.getWindows(), (b) -> b.getProxy()

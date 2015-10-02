@@ -8,6 +8,7 @@ hh.superClass(Nvim.Tabpage)
 
 Nvim.Tabpage::getProxy = -> @_proxy ?= new TabpageProxy @
 Nvim.Tabpage::getWindow = -> super().getProxy()
+Nvim.Tabpage::getWindows = -> _.map super(), (e) -> e.getProxy()
 
 Tabpage = {}
 Tabpage.properties =

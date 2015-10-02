@@ -39,10 +39,10 @@ Nvim      = null
 coffeelib = null
 loaded    = false
 
-# List of commands
+# Host commands
 commands = {}
 
-# Socket data
+# Log server socket data
 dataHandler = (data) ->
     data = data.toString().trim()
     try
@@ -50,29 +50,30 @@ dataHandler = (data) ->
     catch e
         log.error e.stack
         return
-    fiber -> vmHandler(code)
-
+    fiber -> 
+        try vmHandler(code)
+        catch e
+            log.error e, e.stack
 # Vm run
 vmHandler = (code) ->
-    try
-        context = coffeelib
-        context._       = _
-        context.log     = log
-        context.sync    = sync
-        context.require = require
-        context.process = process
-        sandbox = Vm.createContext context
-        res = Vm.runInContext(code, sandbox)
-        if res?
-            if typeof res is 'object'
-                log.debug util.inspect(res, depth:1)
-            else
-                log.debug res
-    catch e
-        log.error e, e.stack
+    context = coffeelib ? {}
+    context._       = _
+    context.log     = log
+    context.sync    = sync
+    context.require = require
+    context.process = process
+    context.global  = global
+    sandbox = Vm.createContext context
+    res = Vm.runInContext(code, sandbox)
+    return unless res?
+    if Buffer.isBuffer(res)
+        res = res.toString()
+    if typeof res is 'object'
+        log.debug util.inspect(res, depth:1)
+    else
+        log.debug res
 
 # RPC request/notification
-
 onNvimNotification = (method, args) ->
     log.info 'Notification: ', method, args.toString()
     return if method is ''
@@ -80,7 +81,6 @@ onNvimNotification = (method, args) ->
         fiber -> commands[method] args...
     else
         fiber -> callHandler(method, args)
-
 onNvimRequest = (method, args, resp) ->
     if method is 'poll'
         resp.send 'ok'
@@ -95,7 +95,6 @@ onNvimRequest = (method, args, resp) ->
         log.error e.stack
         return resp.send e.toString(), true
     return resp.send 'noaction', true
-
 onNvimDisconnect = () ->
     log.error 'Nvim session closed'
 
@@ -115,7 +114,6 @@ callHandler = (method, args, resp) ->
     catch e
         log.err method, args, e.stack
         resp.send e.toString(), true if resp?
-
 getSpecs = (filename, resp) ->
     try
         plugin = Plugin._load filename
@@ -131,8 +129,11 @@ getSpecs = (filename, resp) ->
         log.error 'SPECS:'+filename
         log.error e.stack
 
-# Plugin: commands
-
+# Host: commands
+defineCommand = (name) ->
+    def = "command! #{name} call rpcnotify(#{Nvim._channel_id},"
+    def += " '#{name}', expand('%:p'))"
+    Nvim.command(def)
 commands['CoffeelibPlugin'] = (file) ->
     try
         if Plugin._cache[file]?
@@ -142,7 +143,6 @@ commands['CoffeelibPlugin'] = (file) ->
         global.res = p.exports
     catch e
         log.error e, e.stack
-
 commands['CoffeelibRun'] = (file) ->
     try
         content = Fs.readFileSync(file).toString()
@@ -151,18 +151,14 @@ commands['CoffeelibRun'] = (file) ->
     catch e
         log.error e, e.stack
 
-# Define command
-defineCommand = (name) ->
-    def = "command! #{name} call rpcnotify(#{Nvim._channel_id},"
-    def += " '#{name}', expand('%:p'))"
-    Nvim.command(def)
-
-
 # Log server
-sock = Net.createConnection PORT
-sock.on 'data', dataHandler
-global.log = log  = Logger(console.log)
-log.method = (args...) -> sock.write args.join(' ')+'\n'
+global.log = log = Logger(console.log)
+try
+    sock = Net.createConnection PORT
+    sock.on 'data', dataHandler
+    log.method = (args...) -> sock.write args.join(' ')+'\n'
+catch e
+    log.method = -> #nop
 
 # Nvim pairing
 attach stdio[0], stdio[1], (err, nvim) ->
@@ -189,11 +185,12 @@ hostSetup = (nvim) ->
 
     log.success 'connected to neovim, channel=' + Nvim._channel_id
     
-    loaded = true
-    
     for c of commands
         log.info 'Defining ' + c
         defineCommand(c)
+
+    loaded = true
+
 
 
 
