@@ -159,6 +159,8 @@ try
     log.method = (args...) -> sock.write args.join(' ')+'\n'
 catch e
     log.method = -> #nop
+global.console = {}
+global.console.log = log.text.bind(log)
 
 # Nvim pairing
 attach stdio[0], stdio[1], (err, nvim) ->
@@ -178,7 +180,11 @@ hostSetup = (nvim) ->
     
     # Coffeelib
     coffeelib = require('./coffeelib')
-    coffeelib.log = log if sock?
+    coffeelib.log = log
+    coffeelib.console = {}
+    coffeelib.console.log   = log.text.bind(log)
+    coffeelib.console.error = log.error.bind(log)
+    coffeelib.console.debug = log.debug.bind(log)
     
     Plugin._context = coffeelib
 

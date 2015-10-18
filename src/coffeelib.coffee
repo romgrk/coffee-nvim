@@ -14,9 +14,7 @@ hh = require './helpers'
 
 #===========================================================================}}}
 # lib global context
-
 module.exports = lib = {}
-
 #===========================================================================}}}
 # Helpers
 
@@ -45,15 +43,17 @@ SYNCHRONIZE Nvim.Window::
 SYNCHRONIZE Nvim.Tabpage::
 
 # Definitions
-Nvim         = require('./nvim/nvim')
-BufferProxy  = require('./nvim/buffer')
-TabpageProxy = require('./nvim/tabpage')
-WindowProxy  = require('./nvim/window')
+Nvim                  = require('./nvim/nvim')
+BufferProxy           = require('./nvim/buffer')
+TabpageProxy          = require('./nvim/tabpage')
+{WindowProxy, Window} = require('./nvim/window')
+
 {CurrentProxy, VimProxy, CursorProxy} = require('./nvim/proxies')
 
 Functions   = require('./nvim/functions')
 {Highlight} = require('./nvim/highlight')
 
+lib.Window    = Window
 lib.Highlight = lib.hl = Highlight
 
 _.extend lib, Functions

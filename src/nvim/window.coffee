@@ -1,19 +1,39 @@
 # !::coffee [../../lib/nvim]
 
-Reflect = require 'harmony-reflect'
-hh      = require '../helpers'
+hh        = require '../helpers'
+Functions = require './functions'
+Reflect   = require 'harmony-reflect'
 
 hh.superClass(Nvim.Window)
-
-#Nvim.Window::getOption = (args...) -> RES super(args...)
 
 Nvim.Window::getProxy = -> @_proxy ?= new WindowProxy @
 Nvim.Window::getCursor = -> new CursorProxy @, super()
 Nvim.Window::getBuffer = -> super().getProxy()
 Nvim.Window::getTabpage = -> super().getProxy()
 
-Window = {}
+# Additionnal methods
+Nvim.Window::do = (cmd) ->  
+    winnr = @number
+    if (not winnr?) or typeof winnr isnt 'number'
+        log.warn 'windo: abort: ', winnr
+        return
+    Nvim.command winnr + 'windo ' + cmd
+Nvim.Window::close = ->  
+    @do 'close'
+
+class Window
+    constructor: (num) ->
+        if num? && typeof num is 'number'
+            return Nvim.getWindows()[num-1] ? null
+        Nvim.command 'new | let g:Window_new = winnr()'
+        num = eval 'g:Window_new'
+        return Nvim.getWindows()[num-1]
+
 Window.properties =
+    number: # FIXME should be done otherwise
+        get: ->
+            for w, i in Nvim.getWindows()
+                return (i+1) if w.equals(this)
     buffer:
         get: -> return @getBuffer()
     width:
@@ -34,7 +54,6 @@ Window.properties =
     status: hh.getOptionDesc 'statusline'
 
 
-module.exports =
 class WindowProxy
     constructor: (target) ->
         Object.defineProperties target, Window.properties
@@ -64,4 +83,4 @@ class WindowProxy
         return true
 
 
-
+module.exports = {WindowProxy, Window}
